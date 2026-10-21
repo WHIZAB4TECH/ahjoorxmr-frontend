@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Bell,
+  ChevronDown,
   CheckCircle2,
   DollarSign,
   AlertCircle,
@@ -20,6 +21,7 @@ import type { NotificationType, NotificationCategory } from "@/types/notificatio
 import { NOTIFICATION_CATEGORIES } from "@/types/notification";
 import { MOCK_NOTIFICATIONS } from "@/data/notifications";
 import RelativeTime from "@/components/ui/RelativeTime";
+import { useLoadMore } from "@/hooks/useLoadMore";
 
 const TYPE_CONFIG: Record<
   NotificationType,
@@ -50,8 +52,6 @@ function getFilterLabel(filter: NotificationCategory): string {
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [selectedFilter, setSelectedFilter] = useState<NotificationCategory>("all");
-  const [itemsPerPage] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("ahjoorxmr:notifications") ?? "[]") as Array<Omit<Notification, "timestamp"> & { timestamp: string }>;
@@ -83,13 +83,11 @@ export default function NotificationsPage() {
     [filteredNotifications]
   );
 
-  // Paginate
-  const paginatedNotifications = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return sortedNotifications.slice(start, start + itemsPerPage);
-  }, [sortedNotifications, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(sortedNotifications.length / itemsPerPage);
+  const { visibleCount, hasMore, loadMore, sentinelRef, announcement } = useLoadMore(
+    sortedNotifications.length,
+    `dashboard:notifications:${selectedFilter}`
+  );
+  const visibleNotifications = sortedNotifications.slice(0, visibleCount);
 
   const markAllRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -115,7 +113,6 @@ export default function NotificationsPage() {
 
   const handleFilterChange = (filter: NotificationCategory) => {
     setSelectedFilter(filter);
-    setCurrentPage(1);
   };
 
   if (notifications.length === 0) {
@@ -187,7 +184,7 @@ export default function NotificationsPage() {
       {/* Results Summary */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-[var(--muted)]">
-          Showing {Math.min(itemsPerPage, sortedNotifications.length)} of{" "}
+          Showing {visibleNotifications.length} of{" "}
           {sortedNotifications.length} notification{sortedNotifications.length !== 1 ? "s" : ""}
         </p>
         {unreadCount > 0 && (
@@ -200,13 +197,13 @@ export default function NotificationsPage() {
 
       {/* Notifications List */}
       <div className="space-y-2 bg-[var(--content)] rounded-3xl overflow-hidden">
-        {paginatedNotifications.length === 0 ? (
+        {visibleNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Bell size={32} className="text-[var(--muted)] mb-3" aria-hidden="true" />
             <p className="text-[var(--muted)]">No notifications in this category</p>
           </div>
         ) : (
-          paginatedNotifications.map((notification) => {
+          visibleNotifications.map((notification) => {
             const { icon: Icon, color } = TYPE_CONFIG[notification.type];
             return (
               <div
@@ -261,40 +258,24 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-8">
+      <div ref={sentinelRef} aria-hidden="true" className="h-px" />
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-[var(--muted)]" role="status" aria-live="polite">
+          {announcement || `Showing ${visibleNotifications.length} of ${sortedNotifications.length} notifications`}
+        </p>
+        {hasMore ? (
           <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-3 py-2 rounded-lg text-sm font-medium text-[var(--muted)] bg-[var(--ov-0a)] hover:text-[var(--text)] hover:bg-[var(--ov-1a)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76]"
+            type="button"
+            onClick={loadMore}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm text-[var(--text)] bg-[var(--ov-0a)] hover:bg-[var(--ov-1a)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76]"
           >
-            Previous
+            Load more
+            <ChevronDown size={16} aria-hidden="true" />
           </button>
-          <div className="flex items-center gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76] ${
-                  currentPage === page
-                    ? "bg-white text-black"
-                    : "bg-[var(--ov-0a)] text-[var(--muted)] hover:text-[var(--text)]"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-3 py-2 rounded-lg text-sm font-medium text-[var(--muted)] bg-[var(--ov-0a)] hover:text-[var(--text)] hover:bg-[var(--ov-1a)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76]"
-          >
-            Next
-          </button>
-        </div>
-      )}
+        ) : (
+          <span className="text-sm text-[var(--muted)]">All notifications loaded</span>
+        )}
+      </div>
     </div>
   );
 }

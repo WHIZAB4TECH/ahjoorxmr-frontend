@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Copy,
   ExternalLink,
+  ChevronDown,
   Filter,
   LogOut,
   Plus,
@@ -25,6 +26,7 @@ import LowBalanceAlertBanner, { LowBalanceAlertSettings } from "@/components/wal
 import { isTwoFactorEnabled } from "@/lib/twoFactor";
 import BalanceBreakdownWidget from "@/components/wallet/BalanceBreakdownWidget";
 import { FriendbotButton } from "@/components/wallet/FriendbotButton";
+import { useLoadMore } from "@/hooks/useLoadMore";
 
 type TransactionType = "contribution" | "payout" | "join";
 
@@ -175,6 +177,11 @@ export default function WalletPage() {
     if (selectedFilter === "all") return MOCK_TRANSACTIONS;
     return MOCK_TRANSACTIONS.filter((tx) => tx.type === selectedFilter);
   }, [selectedFilter]);
+  const { visibleCount, hasMore, loadMore, sentinelRef, announcement } = useLoadMore(
+    filteredTransactions.length,
+    `dashboard:wallet:${selectedFilter}`
+  );
+  const visibleTransactions = filteredTransactions.slice(0, visibleCount);
 
   const stats = useMemo(() => {
     return {
@@ -414,7 +421,7 @@ export default function WalletPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--ov-0f)]">
-                  {filteredTransactions.map((tx) => (
+                  {visibleTransactions.map((tx) => (
                     <tr
                       key={tx.id}
                       className="hover:bg-[var(--modal)] transition-colors"
@@ -453,6 +460,22 @@ export default function WalletPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div ref={sentinelRef} aria-hidden="true" className="h-px" />
+            <div className="flex items-center justify-between gap-4 border-t border-[var(--ov-0f)] px-6 py-4">
+              <p className="text-sm text-[var(--muted)]" role="status" aria-live="polite">
+                {announcement || `Showing ${visibleTransactions.length} of ${filteredTransactions.length} transactions`}
+              </p>
+              {hasMore && (
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--ov-16)] bg-[var(--ov-08)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--ov-10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76]"
+                >
+                  Load more
+                  <ChevronDown size={16} aria-hidden="true" />
+                </button>
+              )}
             </div>
           </div>
         )}

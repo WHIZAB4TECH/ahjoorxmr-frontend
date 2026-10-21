@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, Clock3, ChevronDown, FileText } from "lucide-react";
 import ExportButton from "@/components/ui/ExportButton";
@@ -14,6 +14,7 @@ import {
   type PayoutRecord,
   type PayoutStatus,
 } from "@/data/payouts";
+import { useLoadMore } from "@/hooks/useLoadMore";
 
 // ---------------------------------------------------------------------------
 // Local formatting helpers (screen-only variants, keep in sync with data/payouts.ts)
@@ -41,17 +42,12 @@ function statusStyles(status: PayoutStatus) {
   return "bg-[#3a2f18] text-[#ffd56a] border-[#665221]";
 }
 
-const PAGE_SIZE = 5;
-
 export default function PayoutsPage() {
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
-  const visiblePayouts = useMemo(
-    () => MOCK_PAYOUT_HISTORY.slice(0, visibleCount),
-    [visibleCount]
+  const { visibleCount, hasMore, loadMore, sentinelRef, announcement } = useLoadMore(
+    MOCK_PAYOUT_HISTORY.length,
+    "dashboard:payouts"
   );
-
-  const hasMore = visibleCount < MOCK_PAYOUT_HISTORY.length;
+  const visiblePayouts = MOCK_PAYOUT_HISTORY.slice(0, visibleCount);
 
   // Exports the full history, not just the rows currently paged into view.
   const getExportRows = useCallback(
@@ -212,15 +208,16 @@ export default function PayoutsPage() {
               </table>
             </div>
 
+            <div ref={sentinelRef} aria-hidden="true" className="h-px" />
             <div className="flex items-center justify-between gap-4 border-t border-[var(--ov-0f)] px-6 py-4">
-              <p className="text-sm text-[var(--muted)]">
-                Showing {visiblePayouts.length} of {MOCK_PAYOUT_HISTORY.length} payouts
+              <p className="text-sm text-[var(--muted)]" role="status" aria-live="polite">
+                {announcement || `Showing ${visiblePayouts.length} of ${MOCK_PAYOUT_HISTORY.length} payouts`}
               </p>
 
               {hasMore ? (
                 <button
                   type="button"
-                  onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}
+                  onClick={loadMore}
                   className="inline-flex items-center gap-2 rounded-full border border-[var(--ov-16)] bg-[var(--ov-08)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--ov-10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76]"
                 >
                   Load more
