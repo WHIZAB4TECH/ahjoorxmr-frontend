@@ -9,6 +9,7 @@ import {
   type CelebrationKind,
   type CelebrationMilestone,
 } from "@/lib/milestoneCelebrations";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 
 const DISPLAY_MS = 5000;
 const CONFETTI_MS = 2800;
@@ -19,10 +20,6 @@ const ICONS: Record<CelebrationKind, typeof Trophy> = {
   circle_fully_funded: Users,
   final_payout_completed: Trophy,
 };
-
-function prefersReducedMotion(): boolean {
-  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-}
 
 interface Particle {
   x: number;
@@ -37,6 +34,8 @@ interface Particle {
 
 /** Runs a canvas confetti burst; returns a function that stops it early. */
 function runConfetti(canvas: HTMLCanvasElement): () => void {
+  // Guards the first render, before usePrefersReducedMotion has read the preference.
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return () => {};
   const ctx = canvas.getContext("2d");
   if (!ctx) return () => {};
 
@@ -101,18 +100,13 @@ function runConfetti(canvas: HTMLCanvasElement): () => void {
  */
 export default function MilestoneCelebration() {
   const [queue, setQueue] = useState<CelebrationMilestone[]>([]);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const current = queue[0] ?? null;
 
   const dismiss = useCallback(() => setQueue((q) => q.slice(1)), []);
 
   useEffect(() => {
-    const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    setReducedMotion(prefersReducedMotion());
-    const onChange = () => setReducedMotion(prefersReducedMotion());
-    media?.addEventListener?.("change", onChange);
-
     const onCelebrate = (e: Event) => {
       const milestone = (e as CustomEvent<CelebrationMilestone>).detail;
       if (milestone) setQueue((q) => (q.some((m) => m.key === milestone.key) ? q : [...q, milestone]));
@@ -122,7 +116,6 @@ export default function MilestoneCelebration() {
     if (pending.length) setQueue((q) => [...q, ...pending.filter((m) => !q.some((x) => x.key === m.key))]);
     return () => {
       detachCelebrationOverlay();
-      media?.removeEventListener?.("change", onChange);
       window.removeEventListener(CELEBRATE_EVENT, onCelebrate);
     };
   }, []);

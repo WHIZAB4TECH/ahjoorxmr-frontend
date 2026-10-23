@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 const CELEBRATED_KEY = "ahjoorxmr:celebrated-milestones";
 
 // Fired on window to ask the (single) <MilestoneCelebration /> overlay to play.
@@ -17,7 +18,7 @@ export interface CelebrationMilestone {
 
 function readCelebrated(): Set<string> {
   try {
-    const parsed = JSON.parse(localStorage.getItem(CELEBRATED_KEY) ?? "[]");
+    const parsed = JSON.parse(safeStorage.getItem(CELEBRATED_KEY) ?? "[]");
     return new Set(Array.isArray(parsed) ? parsed : []);
   } catch {
     return new Set();
@@ -33,7 +34,7 @@ export function markCelebrated(key: string) {
   try {
     const keys = readCelebrated();
     keys.add(key);
-    localStorage.setItem(CELEBRATED_KEY, JSON.stringify([...keys]));
+    safeStorage.setItem(CELEBRATED_KEY, JSON.stringify([...keys]));
   } catch {
     // Storage unavailable: worst case the animation may replay on a later visit.
   }

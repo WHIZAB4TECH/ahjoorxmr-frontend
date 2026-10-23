@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 import type { SeatObligations, SeatTransferRequest, SeatTransferStatus } from "@/types/seatTransfer";
 
 const TRANSFERS_KEY = "ahjoorxmr:seat-transfers";
@@ -13,7 +14,7 @@ const ADDRESS_PATTERN = /^0x[0-9a-zA-Z]{8,64}$/;
 function readAll(): SeatTransferRequest[] {
   if (typeof window === "undefined") return [];
   try {
-    const parsed = JSON.parse(localStorage.getItem(TRANSFERS_KEY) ?? "[]");
+    const parsed = JSON.parse(safeStorage.getItem(TRANSFERS_KEY) ?? "[]");
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -22,7 +23,7 @@ function readAll(): SeatTransferRequest[] {
 
 function writeAll(transfers: SeatTransferRequest[], circleId: string) {
   try {
-    localStorage.setItem(TRANSFERS_KEY, JSON.stringify(transfers));
+    safeStorage.setItem(TRANSFERS_KEY, JSON.stringify(transfers));
   } catch {
     // Keep the session usable when storage is unavailable.
   }

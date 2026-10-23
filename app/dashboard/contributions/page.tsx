@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, Clock3, Download, Filter, X, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, CalendarDays, CheckCircle2, Clock3, Download, Filter, Receipt, X, XCircle } from "lucide-react";
 import ExportButton from "@/components/ui/ExportButton";
 import { CONTRIBUTION_CIRCLE_OPTIONS, MOCK_CONTRIBUTIONS } from "@/data/contributions";
 import type { ContributionRecord, ContributionStatus } from "@/types/contribution";
@@ -22,9 +22,9 @@ function formatDate(value: string) {
 }
 
 function statusMeta(status: ContributionStatus) {
-    if (status === "on-time") return { label: "On-time", icon: CheckCircle2, className: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10" };
-    if (status === "late") return { label: "Late", icon: Clock3, className: "text-amber-600 dark:text-amber-400 bg-amber-500/10" };
-    return { label: "Missed", icon: XCircle, className: "text-red-600 dark:text-red-400 bg-red-500/10" };
+    if (status === "on-time") return { label: "On-time", icon: CheckCircle2, className: "text-[var(--status-paid)] bg-[var(--status-paid-bg)]" };
+    if (status === "late") return { label: "Late", icon: Clock3, className: "text-[var(--status-late)] bg-[var(--status-late-bg)]" };
+    return { label: "Missed", icon: XCircle, className: "text-[var(--status-missed)] bg-[var(--status-missed-bg)]" };
 }
 
 function ContributionRow({ record }: { record: ContributionRecord }) {
@@ -51,7 +51,12 @@ function ContributionRow({ record }: { record: ContributionRecord }) {
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--muted)]">
                     <span className="inline-flex items-center gap-1"><CalendarDays size={13} aria-hidden="true" /> {record.status === "missed" ? "No payment recorded" : formatDate(record.date)}</span>
                     {record.transactionHash && <span className="font-mono">{record.transactionHash.slice(0, 10)}...{record.transactionHash.slice(-6)}</span>}
-                    <Link href={`/dashboard/circles/${record.circleId}`} className="inline-flex items-center gap-1 text-[#4B6B76] hover:underline sm:ml-auto">View circle <ArrowUpRight size={13} aria-hidden="true" /></Link>
+                    {record.transactionHash && (
+                        <Link href={`/dashboard/contributions/receipt/${record.id}`} className="inline-flex items-center gap-1 text-[#4B6B76] hover:underline sm:ml-auto" aria-label={`View receipt for ${record.circleName} round ${record.round}`}>
+                            <Receipt size={13} aria-hidden="true" /> View receipt
+                        </Link>
+                    )}
+                    <Link href={`/dashboard/circles/${record.circleId}`} className={`inline-flex items-center gap-1 text-[#4B6B76] hover:underline ${record.transactionHash ? "" : "sm:ml-auto"}`}>View circle <ArrowUpRight size={13} aria-hidden="true" /></Link>
                 </div>
             </div>
         </li>

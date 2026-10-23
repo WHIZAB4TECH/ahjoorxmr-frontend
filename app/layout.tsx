@@ -6,14 +6,21 @@ import CommandPalette from "@/components/ui/CommandPalette";
 import CookieConsent from "@/components/ui/CookieConsent";
 
 export const metadata: Metadata = {
-  title: "Ahjoor — Save With Friends",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://ahjoorxmr.com'),
+  title: { template: '%s | Ahjoorxmr', default: 'Ahjoorxmr — Collaborative Savings Circles' },
   description:
-    "All on Your Decentralized Savings Group In One Place. Join a circle, contribute in crypto, receive payouts — borderless, trustless, automated.",
+    "Save together with friends and family in rotating savings circles backed by blockchain.",
   keywords: ["savings group", "decentralized", "crypto", "susu", "chama", "ajo", "blockchain"],
   openGraph: {
     title: "Ahjoor — Save With Friends",
     description: "Decentralized savings circles powered by blockchain.",
     type: "website",
+    siteName: 'Ahjoorxmr',
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ahjoor — Save With Friends",
+    description: "Decentralized savings circles powered by blockchain.",
   },
   manifest: "/manifest.json",
   icons: {

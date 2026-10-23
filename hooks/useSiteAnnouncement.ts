@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -24,7 +25,7 @@ export function useSiteAnnouncement() {
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+      const stored = JSON.parse(safeStorage.getItem(STORAGE_KEY) ?? "[]");
       setDismissedIds(Array.isArray(stored) ? stored : []);
     } catch {
       setDismissedIds([]);
@@ -37,7 +38,7 @@ export function useSiteAnnouncement() {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        safeStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       } catch {
         // localStorage full or unavailable — fail silently.
       }

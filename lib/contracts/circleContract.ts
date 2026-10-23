@@ -7,9 +7,9 @@
  * Issue #215 – Wire contribution flow to on-chain savings circle contract.
  */
 
-export const CIRCLE_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_CIRCLE_CONTRACT_ID ??
-  "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+import { publicEnv } from "@/lib/env";
+
+export const CIRCLE_CONTRACT_ID = publicEnv.circleContractId;
 
 export const RPC_TESTNET = "https://soroban-testnet.stellar.org";
 export const RPC_MAINNET = "https://soroban.stellar.org";
@@ -47,7 +47,7 @@ export interface SimulationResult {
 }
 
 function getRpcUrl(network: StellarNetwork): string {
-  return network === "testnet" ? RPC_TESTNET : RPC_MAINNET;
+  return publicEnv.stellarRpcUrl ?? (network === "testnet" ? RPC_TESTNET : RPC_MAINNET);
 }
 
 /**

@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 const STORAGE_KEY = "ahjoor:passkeys";
 
 export interface StoredPasskey {
@@ -32,7 +33,7 @@ function randomBytes(length: number): Uint8Array {
 function readPasskeys(): StoredPasskey[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as StoredPasskey[]) : [];
   } catch {
     return [];
@@ -41,7 +42,7 @@ function readPasskeys(): StoredPasskey[] {
 
 function writePasskeys(passkeys: StoredPasskey[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(passkeys));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(passkeys));
   } catch {
     // Ignore storage errors; the browser credential remains available.
   }

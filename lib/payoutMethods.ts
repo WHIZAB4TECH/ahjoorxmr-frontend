@@ -1,4 +1,6 @@
+import { safeStorage } from "@/lib/safeStorage";
 import type { PayoutMethodId, PayoutMethodOption, PayoutMethodPreference } from "@/types/payoutMethod";
+import { publicEnv } from "@/lib/env";
 
 /**
  * Off-ramp (crypto → bank) partner configuration. The integration itself is
@@ -6,8 +8,8 @@ import type { PayoutMethodId, PayoutMethodOption, PayoutMethodPreference } from 
  * wallet-only payouts everywhere.
  */
 export const OFFRAMP_CONFIG = {
-  enabled: process.env.NEXT_PUBLIC_OFFRAMP_ENABLED !== "false",
-  partnerName: process.env.NEXT_PUBLIC_OFFRAMP_PARTNER ?? "Bank transfer partner",
+  enabled: publicEnv.offrampEnabled,
+  partnerName: publicEnv.offrampPartner,
   supportedCurrencies: ["USDT", "USDC"],
   feeLabel: "~1% conversion fee",
 };
@@ -62,7 +64,7 @@ export function isPayoutInProgress(isNextRecipient: boolean, nextPayoutDeadline:
 function readAll(): Record<string, PayoutMethodPreference> {
   if (typeof window === "undefined") return {};
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+    const parsed = JSON.parse(safeStorage.getItem(STORAGE_KEY) ?? "{}");
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
@@ -87,7 +89,7 @@ export function savePayoutMethodPreference(circleId: string, method: PayoutMetho
   const pref: PayoutMethodPreference = { circleId, method, updatedAt: new Date().toISOString() };
   if (typeof window === "undefined") return pref;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readAll(), [circleId]: pref }));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readAll(), [circleId]: pref }));
     window.dispatchEvent(new CustomEvent(PAYOUT_METHOD_UPDATED_EVENT, { detail: pref }));
   } catch {
     // Storage may be unavailable (private mode); preference won't persist.

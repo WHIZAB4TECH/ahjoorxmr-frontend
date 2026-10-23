@@ -235,8 +235,8 @@ export default function DashboardLayout({
           <main className="flex-1 px-6 md:px-10 pb-10">
             <EmailVerificationBanner />
             <StaleDataBanner />
-            {/* Issue #220 – USDC trustline check banner */}
-            <TrustlineBanner address={WALLET_ADDRESS} />
+            {/* Issue #217 – USDC trustline check banner */}
+            <TrustlineBanner />
             {children}
           </main>
 

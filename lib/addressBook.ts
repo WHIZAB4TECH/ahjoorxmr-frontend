@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 import type { AddressBookContact } from "@/types/addressBook";
 
 // Client-side only for now (see issue tech notes) — swap for a profile/user
@@ -7,7 +8,7 @@ const STORAGE_KEY = "ahjoor:address-book";
 export function getContacts(): AddressBookContact[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -18,7 +19,7 @@ export function getContacts(): AddressBookContact[] {
 
 function saveContacts(contacts: AddressBookContact[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
   } catch {
     // ignore storage errors
   }

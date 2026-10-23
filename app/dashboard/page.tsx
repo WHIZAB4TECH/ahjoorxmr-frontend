@@ -12,6 +12,7 @@ import type { Circle } from "@/types/circle";
 import BalanceBreakdownWidget from "@/components/wallet/BalanceBreakdownWidget"
 import AnnualSavingsSummary from "@/components/dashboard/AnnualSavingsSummary";
 import SavingsGoalsWidget from "@/components/dashboard/SavingsGoalsWidget";
+import CircleHealthAlertsPanel from "@/components/dashboard/CircleHealthAlertsPanel";
 import TrustlineBanner from "@/components/wallet/TrustlineBanner";
 import { useNetworkGuard } from "@/hooks/useNetworkGuard";
 import { useToast } from "@/components/ui/Toast";
@@ -29,7 +30,7 @@ interface FailedDashboardTx extends TxFailure {
   amount: number;
 }
 
-type WidgetId = 'stats' | 'balance-breakdown' | 'recent-achievement' | 'chart' | 'active-savings' | 'payouts-calendar';
+type WidgetId = 'health-alerts' | 'stats' | 'balance-breakdown' | 'recent-achievement' | 'chart' | 'active-savings' | 'payouts-calendar';
 
 interface WidgetLayout {
   id: WidgetId;
@@ -37,6 +38,7 @@ interface WidgetLayout {
 }
 
 const DEFAULT_LAYOUT: WidgetLayout[] = [
+  { id: 'health-alerts', visible: true },
   { id: 'stats', visible: true },
   { id: 'balance-breakdown', visible: true },
   { id: 'recent-achievement', visible: true },
@@ -46,6 +48,7 @@ const DEFAULT_LAYOUT: WidgetLayout[] = [
 ];
 
 const WIDGET_TITLES: Record<WidgetId, string> = {
+  'health-alerts': 'Circle Health Alerts',
   'stats': 'Overview Stats',
   'balance-breakdown': 'Balance Breakdown',
   'recent-achievement': 'Recent Achievement',
@@ -286,6 +289,8 @@ export default function DashboardOverviewPage() {
 
   const renderWidgetContent = (id: WidgetId) => {
     switch (id) {
+      case 'health-alerts':
+        return <CircleHealthAlertsPanel />;
       case 'stats':
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

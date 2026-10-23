@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 export interface CircleRulesRecord {
   markdown: string;
   updatedAt: string;
@@ -9,7 +10,7 @@ export const CIRCLE_RULES_UPDATED_EVENT = "ahjoorxmr:circle-rules-updated";
 function readAll(): Record<string, CircleRulesRecord> {
   if (typeof window === "undefined") return {};
   try {
-    const parsed = JSON.parse(localStorage.getItem(RULES_KEY) ?? "{}");
+    const parsed = JSON.parse(safeStorage.getItem(RULES_KEY) ?? "{}");
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
@@ -27,13 +28,13 @@ export function saveCircleRules(circleId: string, markdown: string): CircleRules
 
   if (!cleaned) {
     delete rules[circleId];
-    localStorage.setItem(RULES_KEY, JSON.stringify(rules));
+    safeStorage.setItem(RULES_KEY, JSON.stringify(rules));
     window.dispatchEvent(new CustomEvent(CIRCLE_RULES_UPDATED_EVENT, { detail: { circleId } }));
     return null;
   }
 
   const record = { markdown: cleaned, updatedAt: new Date().toISOString() };
-  localStorage.setItem(RULES_KEY, JSON.stringify({ ...rules, [circleId]: record }));
+  safeStorage.setItem(RULES_KEY, JSON.stringify({ ...rules, [circleId]: record }));
   window.dispatchEvent(new CustomEvent(CIRCLE_RULES_UPDATED_EVENT, { detail: { circleId } }));
   return record;
 }

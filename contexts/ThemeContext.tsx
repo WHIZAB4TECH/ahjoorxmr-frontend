@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 "use client";
 
 import {
@@ -71,9 +72,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Initialize from localStorage
   useEffect(() => {
-    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-    const storedFontSize = localStorage.getItem(FONT_SIZE_STORAGE_KEY) as FontSize | null;
-    const storedHighContrast = localStorage.getItem(HIGH_CONTRAST_STORAGE_KEY);
+    const storedTheme = safeStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
+    const storedFontSize = safeStorage.getItem(FONT_SIZE_STORAGE_KEY) as FontSize | null;
+    const storedHighContrast = safeStorage.getItem(HIGH_CONTRAST_STORAGE_KEY);
 
     const initialTheme: Theme = storedTheme === "light" || storedTheme === "dark" || storedTheme === "system" ? storedTheme : "system";
     const resolved = initialTheme === "system" ? getSystemTheme() : initialTheme;
@@ -109,20 +110,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const resolved = next === "system" ? getSystemTheme() : next;
     setThemeState(next);
     setResolvedTheme(resolved);
-    localStorage.setItem(THEME_STORAGE_KEY, next);
+    safeStorage.setItem(THEME_STORAGE_KEY, next);
     applyResolvedTheme(resolved);
     applyHighContrast(highContrast, resolved);
   }, [highContrast]);
 
   const setFontSize = useCallback((size: FontSize) => {
     setFontSizeState(size);
-    localStorage.setItem(FONT_SIZE_STORAGE_KEY, size);
+    safeStorage.setItem(FONT_SIZE_STORAGE_KEY, size);
     applyFontSize(size);
   }, []);
 
   const setHighContrast = useCallback((enabled: boolean) => {
     setHighContrastState(enabled);
-    localStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(enabled));
+    safeStorage.setItem(HIGH_CONTRAST_STORAGE_KEY, String(enabled));
     applyHighContrast(enabled, resolvedTheme);
   }, [resolvedTheme]);
 

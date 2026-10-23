@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 
 interface Props {
   deadline: Date | null;
@@ -32,14 +33,17 @@ export default function CountdownTimer({ deadline, paused = false }: Props) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(
     deadline ? getTimeLeft(deadline) : null
   );
+  // Under reduced motion the seconds digits aren't shown and the timer only
+  // ticks once a minute, so digits don't flip every second.
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     if (!deadline || paused) return;
     const update = () => setTimeLeft(getTimeLeft(deadline));
     update();
-    const id = setInterval(update, 1000);
+    const id = setInterval(update, reducedMotion ? 60 * 1000 : 1000);
     return () => clearInterval(id);
-  }, [deadline, paused]);
+  }, [deadline, paused, reducedMotion]);
 
   if (paused) {
     return (
@@ -78,13 +82,14 @@ export default function CountdownTimer({ deadline, paused = false }: Props) {
   return (
     <div
       className={`flex items-center gap-1 text-xs font-mono font-medium tabular-nums ${colorClass}`}
-      aria-label={`${timeLeft.days} days ${timeLeft.hours} hours ${timeLeft.minutes} minutes ${timeLeft.seconds} seconds remaining`}
+      role="timer"
+      aria-label={`${timeLeft.days} days ${timeLeft.hours} hours ${timeLeft.minutes} minutes${reducedMotion ? "" : ` ${timeLeft.seconds} seconds`} remaining`}
       aria-live="off"
     >
       {timeLeft.days > 0 && <span>{timeLeft.days}d</span>}
       <span>{pad(timeLeft.hours)}h</span>
       <span>{pad(timeLeft.minutes)}m</span>
-      <span>{pad(timeLeft.seconds)}s</span>
+      {!reducedMotion && <span>{pad(timeLeft.seconds)}s</span>}
     </div>
   );
 }

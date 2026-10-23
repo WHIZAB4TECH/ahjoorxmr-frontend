@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 const STORAGE_KEY = "ahjoor:circle-recent-searches";
 const MAX_RECENT = 6;
 
@@ -8,7 +9,7 @@ export const RECENT_SEARCHES_EVENT = "ahjoor:recent-searches-changed";
 export function getRecentSearches(): string[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed)
@@ -21,7 +22,7 @@ export function getRecentSearches(): string[] {
 
 function saveRecentSearches(terms: string[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(terms));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(terms));
     window.dispatchEvent(new Event(RECENT_SEARCHES_EVENT));
   } catch {
     // ignore storage errors

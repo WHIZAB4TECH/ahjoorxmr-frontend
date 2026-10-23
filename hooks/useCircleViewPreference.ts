@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -10,7 +11,7 @@ const DEFAULT_VIEW: CircleView = "grid";
 function readStored(): CircleView {
   if (typeof window === "undefined") return DEFAULT_VIEW;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorage.getItem(STORAGE_KEY);
     if (raw === "grid" || raw === "list") return raw;
   } catch {
     // ignore storage errors
@@ -35,7 +36,7 @@ export function useCircleViewPreference() {
   const setView = useCallback((next: CircleView) => {
     setViewState(next);
     try {
-      localStorage.setItem(STORAGE_KEY, next);
+      safeStorage.setItem(STORAGE_KEY, next);
     } catch {
       // ignore storage errors
     }

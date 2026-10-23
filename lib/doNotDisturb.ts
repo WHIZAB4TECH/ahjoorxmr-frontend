@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 import type { NotificationType } from "@/types/notification";
 
 const SCHEDULE_KEY = "ahjoorxmr:dnd-schedule";
@@ -78,7 +79,7 @@ export function shouldSuppress(type: NotificationType, schedule: DndSchedule = g
 export function getDndSchedule(): DndSchedule {
   if (typeof window === "undefined") return DEFAULT_DND_SCHEDULE;
   try {
-    const raw = localStorage.getItem(SCHEDULE_KEY);
+    const raw = safeStorage.getItem(SCHEDULE_KEY);
     return raw ? { ...DEFAULT_DND_SCHEDULE, ...JSON.parse(raw) } : DEFAULT_DND_SCHEDULE;
   } catch {
     return DEFAULT_DND_SCHEDULE;
@@ -87,7 +88,7 @@ export function getDndSchedule(): DndSchedule {
 
 export function saveDndSchedule(schedule: DndSchedule) {
   try {
-    localStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedule));
+    safeStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedule));
     window.dispatchEvent(new Event(DND_SCHEDULE_EVENT));
   } catch {
     // Storage may be unavailable (private mode); schedule won't persist.

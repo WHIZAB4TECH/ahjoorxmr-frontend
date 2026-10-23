@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 export type ContactField = "email" | "handle" | "none";
 
 export interface ContactSharingSettings {
@@ -17,7 +18,7 @@ export const defaultContactSharingSettings: ContactSharingSettings = {
 function readDirectory(): Record<string, ContactSharingSettings> {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(DIRECTORY_STORAGE_KEY);
+    const raw = safeStorage.getItem(DIRECTORY_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
@@ -48,7 +49,7 @@ export function saveContactSharingSettings(address: string, settings: ContactSha
   try {
     const directory = readDirectory();
     directory[address.toLowerCase()] = normalizeSettings(settings);
-    localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(directory));
+    safeStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(directory));
     window.dispatchEvent(new Event("ahjoor:contact-directory-updated"));
   } catch {
     // Ignore storage errors; profile saving still succeeds.

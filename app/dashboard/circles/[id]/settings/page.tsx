@@ -583,7 +583,7 @@ export default function CircleSettingsPage({
                       <p className="font-mono text-sm text-[var(--text)]">{request.requester}</p>
                       <p className="text-xs text-[var(--muted)]">{request.note || "No note provided"}</p>
                     </div>
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${request.status === "pending" ? "bg-amber-500/15 text-amber-500" : request.status === "approved" ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
+                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${request.status === "pending" ? "bg-[var(--status-pending-bg)] text-[var(--status-pending)]" : request.status === "approved" ? "bg-[var(--status-paid-bg)] text-[var(--status-paid)]" : "bg-[var(--status-missed-bg)] text-[var(--status-missed)]"}`}>
                       {request.status}
                     </span>
                   </div>

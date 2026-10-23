@@ -12,6 +12,7 @@ import {
   type InviteExpiry,
   type InviteLink,
 } from "@/lib/inviteLinks";
+import { INVALID_STELLAR_ADDRESS_MESSAGE, isValidStellarAddress } from "@/lib/stellar";
 
 const EXPIRY_OPTIONS: { value: InviteExpiry; label: string }[] = [
   { value: "24h", label: "24 hours" },
@@ -21,9 +22,9 @@ const EXPIRY_OPTIONS: { value: InviteExpiry; label: string }[] = [
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-  active: "text-green-600 dark:text-green-400",
+  active: "text-[var(--status-paid)]",
   expired: "text-[var(--muted)]",
-  revoked: "text-red-500",
+  revoked: "text-[var(--status-missed)]",
   exhausted: "text-[var(--muted)]",
 };
 
@@ -52,6 +53,8 @@ export default function InviteManager({ circleId }: { circleId: string }) {
   const [open, setOpen] = useState(false);
   const [expiry, setExpiry] = useState<InviteExpiry>("7d");
   const [maxUses, setMaxUses] = useState("");
+  const [invitee, setInvitee] = useState("");
+  const [inviteeError, setInviteeError] = useState<string | null>(null);
   const [links, setLinks] = useState<InviteLink[]>([]);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -69,6 +72,11 @@ export default function InviteManager({ circleId }: { circleId: string }) {
   }
 
   async function generate() {
+    if (invitee.trim() && !isValidStellarAddress(invitee, { allowMuxed: true })) {
+      setInviteeError(INVALID_STELLAR_ADDRESS_MESSAGE);
+      return;
+    }
+    setInviteeError(null);
     const parsed = parseInt(maxUses, 10);
     const link = createInviteLink(circleId, expiry, Number.isFinite(parsed) ? parsed : null);
     await copy(link.token);
@@ -104,10 +112,30 @@ export default function InviteManager({ circleId }: { circleId: string }) {
                 Max uses
                 <input type="number" min={1} placeholder="Unlimited" value={maxUses} onChange={(e) => setMaxUses(e.target.value)} className="w-32 bg-[var(--content)] text-[var(--text)] rounded-lg px-3 py-2" />
               </label>
+              <label className="text-sm text-[var(--muted)] flex flex-col gap-1">
+                Invitee address (optional)
+                <input
+                  type="text"
+                  placeholder="G... or M..."
+                  value={invitee}
+                  onChange={(e) => {
+                    setInvitee(e.target.value);
+                    if (inviteeError) setInviteeError(null);
+                  }}
+                  aria-invalid={inviteeError ? true : undefined}
+                  className="w-64 bg-[var(--content)] text-[var(--text)] rounded-lg px-3 py-2"
+                />
+              </label>
               <button onClick={generate} className="px-4 py-2 rounded-lg bg-[#4B6B76] text-white text-sm font-medium">
                 Generate &amp; copy link
               </button>
             </div>
+
+            {inviteeError && (
+              <p role="alert" className="text-sm text-red-500 mb-4">
+                {inviteeError}
+              </p>
+            )}
 
             {links.length === 0 ? (
               <p className="text-sm text-[var(--muted)]">No invite links yet.</p>

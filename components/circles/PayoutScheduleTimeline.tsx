@@ -17,17 +17,41 @@ interface RoundHistoryRow {
   completedAt: string;
 }
 
-interface PayoutScheduleTimelineProps {
-  participants: TimelineParticipant[];
-  totalRounds: number;
-  currentRound: number;
-  contribution: string;
-  roundHistory: RoundHistoryRow[];
-  /** Deadline for the *current* round's payout, if known. */
-  nextPayoutDeadline?: Date | null;
-  /** Whose row to highlight — typically the signed-in wallet's address. */
-  currentUserAddress: string;
+/** Pre-built round descriptor — pass `rounds` instead of the raw
+ *  participants/history props when the caller has already assembled
+ *  the schedule (e.g. the circle detail page IIFE). */
+export interface PayoutRound {
+  round: number;
+  recipient: string;
+  date: string;
+  status: "paid" | "current" | "upcoming";
+  isCurrentUser: boolean;
 }
+
+type PayoutScheduleTimelineProps =
+  | {
+      /** Pre-built schedule — caller provides fully-assembled rounds. */
+      rounds: PayoutRound[];
+      participants?: never;
+      totalRounds?: never;
+      currentRound?: never;
+      contribution?: never;
+      roundHistory?: never;
+      nextPayoutDeadline?: never;
+      currentUserAddress?: never;
+    }
+  | {
+      rounds?: never;
+      participants: TimelineParticipant[];
+      totalRounds: number;
+      currentRound: number;
+      contribution: string;
+      roundHistory: RoundHistoryRow[];
+      /** Deadline for the *current* round's payout, if known. */
+      nextPayoutDeadline?: Date | null;
+      /** Whose row to highlight — typically the signed-in wallet's address. */
+      currentUserAddress: string;
+    };
 
 type RoundStatus = "paid" | "current" | "upcoming";
 
@@ -76,20 +100,38 @@ const STATUS_CONFIG: Record<RoundStatus, { label: string; icon: typeof Check; do
   upcoming: { label: "Upcoming", icon: Clock, dot: "bg-[var(--ov-14)]", text: "text-[var(--muted)]" },
 };
 
-export default function PayoutScheduleTimeline({
-  participants,
-  totalRounds,
-  currentRound,
-  contribution,
-  roundHistory,
-  nextPayoutDeadline,
-  currentUserAddress,
-}: PayoutScheduleTimelineProps) {
+export default function PayoutScheduleTimeline(props: PayoutScheduleTimelineProps) {
   // #244: collapsed by default on mobile so the detail page's most
   // important content (status, actions) isn't pushed below a long list
   // on a small screen; desktop shows it open since there's room.
   const [collapsed, setCollapsed] = useState(true);
-  const schedule = buildSchedule(participants, totalRounds, currentRound, contribution, roundHistory);
+
+  // Support both the pre-built `rounds` prop and the raw-data props.
+  const schedule: ScheduleRound[] = props.rounds
+    ? props.rounds.map((r) => ({
+        round: r.round,
+        recipient: r.recipient,
+        status: r.status,
+        amount: "",
+        date: r.date,
+      }))
+    : buildSchedule(
+        props.participants,
+        props.totalRounds,
+        props.currentRound,
+        props.contribution,
+        props.roundHistory,
+      );
+
+  const currentRound = props.rounds ? null : props.currentRound;
+  const totalRounds = props.rounds ? schedule.length : props.totalRounds;
+  const nextPayoutDeadline = props.rounds ? null : (props.nextPayoutDeadline ?? null);
+  const currentUserAddress = props.rounds ? "" : props.currentUserAddress;
+
+  // For pre-built rounds, isCurrentUser is already flagged on the item.
+  const isCurrentUserFn = props.rounds
+    ? (round: number) => props.rounds!.find((r) => r.round === round)?.isCurrentUser ?? false
+    : (recipient: string) => recipient.toLowerCase() === currentUserAddress.toLowerCase();
 
   if (schedule.length === 0) return null;
 
@@ -104,9 +146,11 @@ export default function PayoutScheduleTimeline({
       >
         <h2 className="text-sm font-semibold text-gray-900 dark:text-[var(--text)]">
           Payout schedule{" "}
-          <span className="font-normal text-gray-500 dark:text-[var(--muted)]">
-            (round {currentRound} of {totalRounds})
-          </span>
+          {currentRound !== null && (
+            <span className="font-normal text-gray-500 dark:text-[var(--muted)]">
+              (round {currentRound} of {totalRounds})
+            </span>
+          )}
         </h2>
         <ChevronDown
           size={18}
@@ -122,7 +166,9 @@ export default function PayoutScheduleTimeline({
         {schedule.map((row, index) => {
           const config = STATUS_CONFIG[row.status];
           const Icon = config.icon;
-          const isYou = row.recipient.toLowerCase() === currentUserAddress.toLowerCase();
+          const isYou = props.rounds
+            ? isCurrentUserFn(row.round)
+            : (isCurrentUserFn as (r: string) => boolean)(row.recipient);
           const isLast = index === schedule.length - 1;
 
           return (
@@ -153,8 +199,12 @@ export default function PayoutScheduleTimeline({
                       {isYou && <span className="ml-1.5 text-xs font-semibold text-[#4B6B76]">(You)</span>}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-[var(--muted)]">
-                      {row.amount}
-                      {row.date ? ` · ${row.date}` : row.status === "current" && nextPayoutDeadline ? ` · due ${nextPayoutDeadline.toLocaleDateString()}` : ""}
+                      {row.amount || null}
+                      {row.date
+                        ? `${row.amount ? " · " : ""}${new Date(row.date).toLocaleDateString()}`
+                        : row.status === "current" && nextPayoutDeadline
+                          ? `${row.amount ? " · " : ""}due ${nextPayoutDeadline.toLocaleDateString()}`
+                          : ""}
                     </p>
                   </div>
                 </div>

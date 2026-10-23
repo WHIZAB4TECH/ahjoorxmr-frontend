@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -21,7 +22,7 @@ const STORAGE_KEY = "ahjoor:push-prefs";
 function loadStoredPrefs(): PushNotificationPrefs {
   if (typeof window === "undefined") return DEFAULT_PREFS;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorage.getItem(STORAGE_KEY);
     if (raw) return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
   } catch {
     // ignore malformed storage
@@ -31,7 +32,7 @@ function loadStoredPrefs(): PushNotificationPrefs {
 
 function savePrefs(prefs: PushNotificationPrefs) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
   } catch {
     // ignore storage errors
   }

@@ -1,4 +1,5 @@
 import { addNotification } from "@/lib/notifications";
+import { isFederationAddress, isValidStellarPublicKey, normalizeFederationAddress } from "@/lib/stellarFederation";
 import type { CircleInvite, InviteChannel, InviteStatus, ParsedRecipient } from "@/types/circleInvite";
 
 const INVITES_KEY = "ahjoorxmr:circle-invites";
@@ -24,10 +25,27 @@ export function normalizePhone(input: string): string {
   return digits.startsWith("+") ? digits : `+${digits}`;
 }
 
-/** Validates a single email/phone entry and works out which channel to use. */
+/**
+ * Validates a single email/phone/Stellar entry and works out which channel to
+ * use. Federation addresses come back unresolved (`resolving: true`, no
+ * `value`) — the caller resolves them before they can be sent.
+ */
 export function parseRecipient(raw: string): ParsedRecipient {
   const value = raw.trim();
   if (!value) return { raw, error: "Empty entry" };
+
+  // Checked before email: a federation name may itself contain "@".
+  if (value.includes("*")) {
+    return isFederationAddress(value)
+      ? { raw, channel: "stellar", federationAddress: normalizeFederationAddress(value), resolving: true }
+      : { raw, error: "Invalid federation address — use the format name*domain.com" };
+  }
+
+  if (/^G[A-Z2-7]{55}$/i.test(value)) {
+    return isValidStellarPublicKey(value.toUpperCase())
+      ? { raw, value: value.toUpperCase(), channel: "stellar" }
+      : { raw, error: "Invalid Stellar address — check for typos" };
+  }
 
   if (value.includes("@")) {
     return EMAIL_RE.test(value)
@@ -42,7 +60,7 @@ export function parseRecipient(raw: string): ParsedRecipient {
       : { raw, error: "Invalid phone number — include the country code, e.g. +234 801 234 5678" };
   }
 
-  return { raw, error: "Enter an email address or phone number" };
+  return { raw, error: "Enter an email, phone number, Stellar address or name*domain.com" };
 }
 
 /** Splits free-form input on commas, semicolons or new lines and de-duplicates. */
@@ -54,9 +72,10 @@ export function parseRecipientList(input: string): ParsedRecipient[] {
     .filter(Boolean)
     .map(parseRecipient)
     .filter((entry) => {
-      if (!entry.value) return true;
-      if (seen.has(entry.value)) return false;
-      seen.add(entry.value);
+      const key = entry.value ?? entry.federationAddress;
+      if (!key) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
 }
@@ -108,10 +127,16 @@ export function buildInviteLink(circleId: string, inviteId: string, origin: stri
   return `${origin}/dashboard/circles?${params.toString()}`;
 }
 
+export const INVITE_CHANNEL_LABELS: Record<InviteChannel, string> = {
+  email: "email",
+  sms: "SMS",
+  stellar: "Stellar address",
+};
+
 export function buildInviteMessage(circleName: string, link: string, channel: InviteChannel): string {
-  return channel === "sms"
-    ? `You're invited to join "${circleName}" on Ahjoor: ${link}`
-    : `You've been invited to join the savings circle "${circleName}" on Ahjoor.\n\nJoin here: ${link}`;
+  return channel === "email"
+    ? `You've been invited to join the savings circle "${circleName}" on Ahjoor.\n\nJoin here: ${link}`
+    : `You're invited to join "${circleName}" on Ahjoor: ${link}`;
 }
 
 /**
@@ -125,8 +150,8 @@ async function deliverInvite(invite: CircleInvite): Promise<void> {
   addNotification({
     id: `circle-invite-${invite.id}`,
     type: "circle_invite",
-    title: `Invite sent via ${invite.channel === "email" ? "email" : "SMS"}`,
-    description: `${invite.recipient}: ${message.split("\n")[0]}`,
+    title: `Invite sent via ${INVITE_CHANNEL_LABELS[invite.channel]}`,
+    description: `${invite.federationAddress ?? invite.recipient}: ${message.split("\n")[0]}`,
     href: `/dashboard/circles/${invite.circleId}/settings`,
   });
 }
@@ -139,7 +164,7 @@ export interface SendInvitesResult {
 export async function sendCircleInvites(
   circleId: string,
   circleName: string,
-  recipients: { value: string; channel: InviteChannel }[],
+  recipients: { value: string; channel: InviteChannel; federationAddress?: string }[],
   origin: string
 ): Promise<SendInvitesResult> {
   const now = Date.now();
@@ -150,7 +175,7 @@ export async function sendCircleInvites(
     throw new Error(`You can invite up to ${MAX_RECIPIENTS_PER_SEND} people at a time.`);
   }
 
-  for (const { value, channel } of recipients) {
+  for (const { value, channel, federationAddress } of recipients) {
     if (quota <= 0) {
       result.skipped.push({ recipient: value, reason: "Hourly invite limit reached" });
       continue;
@@ -167,6 +192,7 @@ export async function sendCircleInvites(
       circleId,
       circleName,
       recipient: value,
+      ...(federationAddress ? { federationAddress } : {}),
       channel,
       status: "sent",
       link: buildInviteLink(circleId, id, origin),

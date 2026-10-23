@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
+import { publicEnv } from "@/lib/env";
 
 /**
  * Issue #217 – Network Switcher Guard (Testnet vs Mainnet Mismatch)
@@ -17,12 +18,8 @@ import { AlertTriangle, X } from "lucide-react";
 
 // The app's canonical network passphrase comes from the environment.
 // Falls back to Stellar testnet so the guard works in development.
-const APP_NETWORK_PASSPHRASE =
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ??
-  "Test SDF Network ; September 2015";
-
-const APP_NETWORK_LABEL =
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK_LABEL ?? "Testnet";
+const APP_NETWORK_PASSPHRASE = publicEnv.stellarNetworkPassphrase;
+const APP_NETWORK_LABEL = publicEnv.stellarNetworkLabel;
 
 // ---------------------------------------------------------------------------
 // Freighter browser-extension shim

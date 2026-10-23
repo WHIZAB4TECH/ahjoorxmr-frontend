@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { sanitizeCircleRules, type CircleRulesRecord } from "@/lib/circleRules";
 
 function renderInline(text: string) {
@@ -8,8 +9,18 @@ function renderInline(text: string) {
   );
 }
 
-export default function CircleRulesView({ rules }: { rules: CircleRulesRecord }) {
+export default function CircleRulesView({
+  rules,
+  onViewed,
+}: {
+  rules: CircleRulesRecord;
+  onViewed?: () => void;
+}) {
   const lines = sanitizeCircleRules(rules.markdown).split("\n");
+
+  useEffect(() => {
+    onViewed?.();
+  }, [onViewed]);
 
   return (
     <div className="space-y-2 text-sm leading-6 text-[var(--muted)]">

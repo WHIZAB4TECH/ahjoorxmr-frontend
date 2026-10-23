@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
-import { Loader2, Mail, MessageSquare, Send, X } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Loader2, Mail, MessageSquare, Send, Wallet, X } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import CopyButton from "@/components/ui/CopyButton";
 import {
   CIRCLE_INVITES_EVENT,
+  INVITE_CHANNEL_LABELS,
   MAX_INVITES_PER_HOUR,
   MAX_RECIPIENTS_PER_SEND,
   getCircleInvites,
@@ -13,12 +14,23 @@ import {
   parseRecipientList,
   sendCircleInvites,
 } from "@/lib/circleInvites";
-import type { CircleInvite, InviteStatus, ParsedRecipient } from "@/types/circleInvite";
+import { FederationError, resolveFederationAddress, shortenStellarAddress } from "@/lib/stellarFederation";
+import type { CircleInvite, InviteChannel, InviteStatus, ParsedRecipient } from "@/types/circleInvite";
+
+const CHANNEL_ICONS: Record<InviteChannel, typeof Mail> = {
+  email: Mail,
+  sms: MessageSquare,
+  stellar: Wallet,
+};
+
+function recipientKey(recipient: ParsedRecipient): string {
+  return recipient.value ?? recipient.federationAddress ?? recipient.raw;
+}
 
 const STATUS_STYLES: Record<InviteStatus, string> = {
   sent: "bg-[var(--ov-0f)] text-[var(--muted)]",
-  opened: "bg-amber-500/15 text-amber-500",
-  joined: "bg-green-500/15 text-green-500",
+  opened: "bg-[var(--status-pending-bg)] text-[var(--status-pending)]",
+  joined: "bg-[var(--status-paid-bg)] text-[var(--status-paid)]",
 };
 
 interface CircleInvitePanelProps {
@@ -36,6 +48,7 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
   const [quota, setQuota] = useState(MAX_INVITES_PER_HOUR);
   const [sending, setSending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const resolvingRef = useRef(new Set<string>());
 
   const refresh = useCallback(() => {
     setInvites(getCircleInvites(circleId));
@@ -52,13 +65,43 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
     };
   }, [refresh]);
 
+  // Resolve federation addresses (name*domain) to account IDs as soon as they
+  // become chips, so the organizer sees who they're inviting before sending.
+  useEffect(() => {
+    for (const recipient of recipients) {
+      const address = recipient.federationAddress;
+      if (!recipient.resolving || !address || resolvingRef.current.has(address)) continue;
+      resolvingRef.current.add(address);
+      resolveFederationAddress(address)
+        .then((record) => {
+          setRecipients((current) => {
+            const duplicate = current.some((r) => r.value === record.accountId && r.federationAddress !== address);
+            return current.map((r) =>
+              r.federationAddress === address
+                ? duplicate
+                  ? { ...r, resolving: false, error: `Resolves to ${shortenStellarAddress(record.accountId)}, which is already added` }
+                  : { ...r, resolving: false, value: record.accountId }
+                : r
+            );
+          });
+        })
+        .catch((error) => {
+          const message = error instanceof FederationError ? error.message : `Couldn't resolve ${address}`;
+          setRecipients((current) =>
+            current.map((r) => (r.federationAddress === address ? { ...r, resolving: false, error: message } : r))
+          );
+        })
+        .finally(() => resolvingRef.current.delete(address));
+    }
+  }, [recipients]);
+
   /** Parses `text` into chips and returns the resulting recipient list. */
   const commitDraft = (text: string = draft): ParsedRecipient[] => {
     if (!text.trim()) return recipients;
-    const existing = new Set(recipients.map((r) => r.value ?? r.raw));
+    const existing = new Set(recipients.map(recipientKey));
     const next = [
       ...recipients,
-      ...parseRecipientList(text).filter((r) => !existing.has(r.value ?? r.raw)),
+      ...parseRecipientList(text).filter((r) => !existing.has(recipientKey(r))),
     ];
     setRecipients(next);
     setDraft("");
@@ -73,6 +116,7 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
 
   const valid = recipients.filter((r) => r.value && r.channel);
   const invalid = recipients.filter((r) => r.error);
+  const resolving = recipients.some((r) => r.resolving);
   const limit = Math.min(MAX_RECIPIENTS_PER_SEND, quota);
 
   const handleSend = async () => {
@@ -83,8 +127,12 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
       setFormError("Fix or remove the highlighted entries before sending.");
       return;
     }
+    if (all.some((r) => r.resolving)) {
+      setFormError("Wait for Stellar federation addresses to finish resolving.");
+      return;
+    }
     if (valid.length === 0) {
-      setFormError("Add at least one email address or phone number.");
+      setFormError("Add at least one email address, phone number or Stellar address.");
       return;
     }
     if (quota === 0) {
@@ -102,7 +150,7 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
       const result = await sendCircleInvites(
         circleId,
         circleName,
-        valid.map((r) => ({ value: r.value!, channel: r.channel! })),
+        valid.map((r) => ({ value: r.value!, channel: r.channel!, federationAddress: r.federationAddress })),
         window.location.origin
       );
       if (result.sent.length > 0) {
@@ -132,15 +180,16 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
   return (
     <section className="bg-[var(--content)] p-6 rounded-2xl space-y-5">
       <div>
-        <h2 className="text-lg font-bold font-sora text-[var(--text)]">Invite by Email or SMS</h2>
+        <h2 className="text-lg font-bold font-sora text-[var(--text)]">Invite by Email, SMS or Stellar Address</h2>
         <p className="text-xs text-[var(--muted)] mt-1">
-          Send people a message with a link to join this circle. Separate multiple entries with commas or new lines.
+          Send people a link to join this circle. Stellar invites accept a G-address or a federation address (name*domain.com),
+          which is looked up before sending. Separate multiple entries with commas or new lines.
         </p>
       </div>
 
       <div className="space-y-2">
         <label htmlFor={inputId} className="text-sm font-medium text-[var(--text)]">
-          Email addresses or phone numbers
+          Email addresses, phone numbers or Stellar addresses
         </label>
         <div
           className={`flex flex-wrap gap-2 rounded-xl border bg-[var(--ov-05)] p-2 focus-within:ring-2 focus-within:ring-[#4B6B76] ${
@@ -148,23 +197,32 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
           }`}
         >
           {recipients.map((recipient, index) => {
-            const Icon = recipient.channel === "sms" ? MessageSquare : Mail;
+            const Icon = recipient.resolving ? Loader2 : CHANNEL_ICONS[recipient.channel ?? "email"];
+            const label = recipient.federationAddress ?? recipient.value ?? recipient.raw;
             return (
               <span
                 key={`${recipient.raw}-${index}`}
                 title={recipient.error}
                 className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${
-                  recipient.error ? "bg-red-500/15 text-red-400" : "bg-[var(--ov-0f)] text-[var(--text)]"
+                  recipient.error ? "bg-[var(--status-missed-bg)] text-[var(--status-missed)]" : "bg-[var(--ov-0f)] text-[var(--text)]"
                 }`}
               >
-                {!recipient.error && <Icon size={12} aria-hidden="true" />}
-                <span className="truncate">{recipient.value ?? recipient.raw}</span>
+                {!recipient.error && (
+                  <Icon size={12} className={recipient.resolving ? "animate-spin" : undefined} aria-hidden="true" />
+                )}
+                <span className="truncate">{label}</span>
+                {recipient.federationAddress && recipient.value && (
+                  <span className="font-mono text-[var(--muted)]" title={recipient.value}>
+                    → {shortenStellarAddress(recipient.value)}
+                  </span>
+                )}
+                {recipient.resolving && <span className="text-[var(--muted)]">resolving…</span>}
                 {recipient.error && <span className="sr-only">— {recipient.error}</span>}
                 <button
                   type="button"
                   onClick={() => removeRecipient(index)}
                   className="rounded-full p-0.5 hover:bg-[var(--ov-14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76]"
-                  aria-label={`Remove ${recipient.value ?? recipient.raw}`}
+                  aria-label={`Remove ${label}`}
                 >
                   <X size={12} aria-hidden="true" />
                 </button>
@@ -178,7 +236,7 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
             autoComplete="off"
             value={draft}
             disabled={sending}
-            placeholder={recipients.length ? "" : "ada@example.com, +234 801 234 5678"}
+            placeholder={recipients.length ? "" : "ada@example.com, +234 801 234 5678, ada*lobstr.co"}
             aria-describedby={formError ? errorId : undefined}
             aria-invalid={!!formError}
             onChange={(e) => setDraft(e.target.value)}
@@ -202,8 +260,11 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
           />
         </div>
 
+        <p className="sr-only" aria-live="polite">
+          {resolving ? "Resolving Stellar federation address…" : ""}
+        </p>
         {invalid.length > 0 && (
-          <ul className="space-y-0.5 text-xs text-red-400">
+          <ul className="space-y-0.5 text-xs text-[var(--status-missed)]">
             {invalid.map((r, i) => (
               <li key={`${r.raw}-${i}`}>
                 <span className="font-mono">{r.raw}</span>: {r.error}
@@ -212,7 +273,7 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
           </ul>
         )}
         {formError && (
-          <p id={errorId} role="alert" className="text-xs text-red-400">
+          <p id={errorId} role="alert" className="text-xs text-[var(--status-missed)]">
             {formError}
           </p>
         )}
@@ -225,7 +286,7 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
         <button
           type="button"
           onClick={handleSend}
-          disabled={sending || quota === 0 || (recipients.length === 0 && !draft.trim())}
+          disabled={sending || resolving || quota === 0 || (recipients.length === 0 && !draft.trim())}
           className="inline-flex items-center gap-2 rounded-lg bg-[#4B6B76] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#3D5A64] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76]"
         >
           {sending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Send size={14} aria-hidden="true" />}
@@ -240,13 +301,18 @@ export default function CircleInvitePanel({ circleId, circleName }: CircleInvite
         ) : (
           <ul className="divide-y divide-[var(--ov-14)] rounded-xl border border-[var(--ov-14)]">
             {invites.map((invite) => {
-              const Icon = invite.channel === "sms" ? MessageSquare : Mail;
+              const Icon = CHANNEL_ICONS[invite.channel];
               return (
                 <li key={invite.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <Icon size={16} className="shrink-0 text-[var(--muted)]" aria-label={invite.channel === "sms" ? "SMS" : "Email"} />
+                    <Icon size={16} className="shrink-0 text-[var(--muted)]" aria-label={INVITE_CHANNEL_LABELS[invite.channel]} />
                     <div className="min-w-0">
-                      <p className="truncate text-sm text-[var(--text)]">{invite.recipient}</p>
+                      <p className="truncate text-sm text-[var(--text)]" title={invite.recipient}>
+                        {invite.federationAddress ?? invite.recipient}
+                      </p>
+                      {invite.federationAddress && (
+                        <p className="truncate font-mono text-xs text-[var(--muted)]">{shortenStellarAddress(invite.recipient)}</p>
+                      )}
                       <p className="text-xs text-[var(--muted)]">
                         Sent {new Date(invite.sentAt).toLocaleString()}
                       </p>

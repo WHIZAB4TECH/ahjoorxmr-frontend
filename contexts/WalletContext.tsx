@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 "use client";
 
 import {
@@ -174,11 +175,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const saveToStorage = (wallets: LinkedWallet[], activeAddr: string | null) => {
     try {
-      localStorage.setItem(STORAGE_KEY_LINKED, JSON.stringify(wallets));
+      safeStorage.setItem(STORAGE_KEY_LINKED, JSON.stringify(wallets));
       if (activeAddr) {
-        localStorage.setItem(STORAGE_KEY_ACTIVE, activeAddr);
+        safeStorage.setItem(STORAGE_KEY_ACTIVE, activeAddr);
       } else {
-        localStorage.removeItem(STORAGE_KEY_ACTIVE);
+        safeStorage.removeItem(STORAGE_KEY_ACTIVE);
       }
     } catch {
       // ignore
@@ -286,7 +287,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const setActiveWallet = useCallback((addr: string) => {
     setActiveWalletAddress(addr);
     try {
-      localStorage.setItem(STORAGE_KEY_ACTIVE, addr);
+      safeStorage.setItem(STORAGE_KEY_ACTIVE, addr);
     } catch {}
   }, []);
 

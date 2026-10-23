@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { getHistoricalUsdRate } from "@/lib/historicalRates";
+import ChartDataTable, { ChartViewToggle } from "@/components/charts/ChartDataTable";
 
 export interface ContributionRecord {
   id: string;
@@ -31,6 +32,11 @@ export default function ContributionFiatValueChart({ contributions }: { contribu
   const [mode, setMode] = useState<DisplayMode>("fiat");
   const [rates, setRates] = useState<Record<string, number | null>>({});
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+  const [showTable, setShowTable] = useState(false);
+  const chartId = useId();
+  const titleId = `${chartId}-title`;
+  const descId = `${chartId}-desc`;
+  const tableId = `${chartId}-table`;
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +76,11 @@ export default function ContributionFiatValueChart({ contributions }: { contribu
     x: points.length === 1 ? 50 : 8 + (84 * index) / (points.length - 1),
     y: 88 - ((mode === "fiat" ? point.fiatValue : point.amount) / maxValue) * 72,
   }));
+  const valueLabel = (point: HistoricalContribution) =>
+    mode === "fiat" ? formatUsd(point.fiatValue) : `${point.amount.toLocaleString()} USDT`;
+  const chartDescription = points.length === 0
+    ? "No contributions yet."
+    : `Line chart of ${points.length} contributions from ${formatDate(points[0].date)} (${valueLabel(points[0])}) to ${formatDate(points[points.length - 1].date)} (${valueLabel(points[points.length - 1])}).`;
   const linePath = plottedPoints.map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`).join(" ");
 
   return (
@@ -80,18 +91,30 @@ export default function ContributionFiatValueChart({ contributions }: { contribu
           <h2 className="mt-2 text-xl font-bold font-sora text-[var(--text)]">Value at the time of each contribution</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">Historical USDT to USD rates are looked up by contribution date.</p>
         </div>
-        <div className="inline-flex self-start rounded-full border border-[var(--ov-14)] bg-[var(--ov-07)] p-1" aria-label="Contribution value display">
-          {(["fiat", "crypto"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setMode(option)}
-              className={`rounded-full px-3 py-2 text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76] ${mode === option ? "bg-[var(--text)] text-[var(--bg)]" : "text-[var(--muted)] hover:text-[var(--text)]"}`}
-              aria-pressed={mode === option}
-            >
-              {option}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 self-start">
+          <div className="inline-flex rounded-full border border-[var(--ov-14)] bg-[var(--ov-07)] p-1" role="group" aria-label="Contribution value display">
+            {(["fiat", "crypto"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setMode(option)}
+                className={`rounded-full px-3 py-2 text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B6B76] ${mode === option ? "bg-[var(--text)] text-[var(--bg)]" : "text-[var(--muted)] hover:text-[var(--text)]"}`}
+                aria-pressed={mode === option}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {points.length > 0 && (
+            <ChartViewToggle
+              showTable={showTable}
+              onToggle={() => {
+                setShowTable((value) => !value);
+                setHoveredPoint(null);
+              }}
+              controls={tableId}
+            />
+          )}
         </div>
       </div>
 
@@ -99,24 +122,45 @@ export default function ContributionFiatValueChart({ contributions }: { contribu
         <div className="mt-6 flex h-[280px] items-center justify-center rounded-[1.5rem] border border-[var(--ov-10)] bg-[var(--surface)] text-sm text-[var(--muted)]" role="status">Loading contribution history...</div>
       ) : points.length === 0 ? (
         <div className="mt-6 flex h-[280px] items-center justify-center rounded-[1.5rem] border border-[var(--ov-10)] bg-[var(--surface)] px-6 text-center text-sm text-[var(--muted)]">No contribution history yet. Your historical value will appear after your first contribution.</div>
+      ) : showTable ? (
+        <div className="mt-6">
+          <ChartDataTable
+            id={tableId}
+            caption="Contribution value at the time of each contribution"
+            columns={[
+              { key: "date", label: "Date" },
+              { key: "amount", label: "Amount (USDT)", numeric: true },
+              { key: "fiat", label: "Value (USD)", numeric: true },
+              { key: "rate", label: "Rate (USD / USDT)", numeric: true },
+            ]}
+            rows={points.map((point) => ({
+              date: formatDate(point.date),
+              amount: point.amount.toLocaleString(),
+              fiat: formatUsd(point.fiatValue),
+              rate: `${formatUsd(point.rate)}${point.estimated ? " (estimated)" : ""}`,
+            }))}
+          />
+        </div>
       ) : (
         <>
           <div className="relative mt-6 h-[280px] overflow-hidden rounded-[1.5rem] border border-[var(--ov-10)] bg-[var(--surface)] p-4 sm:p-6">
             {hoveredPoint !== null && points[hoveredPoint] && (
               <div className="absolute right-4 top-4 z-10 rounded-xl border border-[var(--ov-14)] bg-[var(--bg)] px-3 py-2 text-right text-xs shadow-xl sm:right-6 sm:top-6" role="status">
-                <p className="font-medium text-[#5EEAD4]">{formatDate(points[hoveredPoint].date)}</p>
+                <p className="font-medium text-[var(--chart-1)]">{formatDate(points[hoveredPoint].date)}</p>
                 <p className="mt-1 text-[var(--text)]">{points[hoveredPoint].amount.toLocaleString()} USDT</p>
                 <p className="text-[var(--text)]">{formatUsd(points[hoveredPoint].fiatValue)}</p>
                 <p className="text-[var(--muted)]">Rate: {formatUsd(points[hoveredPoint].rate)} / USDT{points[hoveredPoint].estimated ? " (estimated)" : ""}</p>
               </div>
             )}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full overflow-visible" role="img" aria-label={`${mode === "fiat" ? "Fiat value" : "Crypto amount"} of contributions over time`}>
-              {[16, 34, 52, 70, 88].map((tick) => <line key={tick} x1="0" x2="100" y1={tick} y2={tick} stroke="rgba(255,255,255,0.06)" strokeDasharray="2 4" />)}
-              <line x1="0" x2="100" y1="88" y2="88" stroke="rgba(255,255,255,0.14)" />
-              <path d={linePath} fill="none" stroke="#5EEAD4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full overflow-visible" role="img" aria-labelledby={titleId} aria-describedby={descId}>
+              <title id={titleId}>{`${mode === "fiat" ? "Fiat value" : "Crypto amount"} of contributions over time`}</title>
+              <desc id={descId}>{chartDescription}</desc>
+              {[16, 34, 52, 70, 88].map((tick) => <line key={tick} x1="0" x2="100" y1={tick} y2={tick} stroke="var(--chart-grid)" strokeDasharray="2 4" />)}
+              <line x1="0" x2="100" y1="88" y2="88" stroke="var(--chart-axis)" />
+              <path d={linePath} fill="none" stroke="var(--chart-1)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               {plottedPoints.map((point, index) => (
                 <g key={points[index].id}>
-                  <circle cx={point.x} cy={point.y} r="2.5" fill="#5EEAD4" />
+                  <circle cx={point.x} cy={point.y} r="2.5" fill="var(--chart-1)" aria-hidden="true" />
                   <circle
                     cx={point.x}
                     cy={point.y}
