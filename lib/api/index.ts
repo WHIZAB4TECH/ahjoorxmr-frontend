@@ -18,8 +18,9 @@
 import { mockApiClient } from "./mock";
 import { createHttpApiClient } from "./http";
 import type { ApiClient, ApiCircle, ApiContribution, ApiPayout, ApiNotification } from "./types";
+import { publicEnv } from "@/lib/env";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = publicEnv.apiUrl;
 
 const client: ApiClient = API_URL ? createHttpApiClient(API_URL) : mockApiClient;
 

@@ -88,17 +88,23 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Environment variables
 
-All of the following are `NEXT_PUBLIC_*` variables, which Next.js inlines into both the server and client bundles at build time. None are required for local development — the app runs entirely on bundled mock data when they're unset. See `.env.example` for a ready-to-copy template.
+Configuration is validated by `lib/env.ts` at startup. Invalid values stop the build with the variable name and validation error. Public variables are inlined by Next.js and must not contain secrets. See `.env.example` for the full template.
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | No | _unset_ (mock adapter) | Base URL of the backend API. When set, the typed API client (`lib/api`) uses the HTTP adapter and calls `${NEXT_PUBLIC_API_URL}/circles`, `/contributions`, `/payouts`, `/notifications`, etc. When unset, it falls back to the mock adapter serving `data/*.ts` with simulated latency. |
-| `NEXT_PUBLIC_HEARTBEAT_URL` | No | `/` | Endpoint periodically pinged to detect connectivity loss/reconnects (`lib/connection.ts`). |
-| `NEXT_PUBLIC_STARKNET_RPC_URL` | No | _unset_ (static estimate) | Starknet RPC endpoint used to estimate on-chain gas fees (`lib/gasFee.ts`). |
-| `NEXT_PUBLIC_OFFRAMP_ENABLED` | No | `true` | Set to `"false"` to hide the bank-transfer off-ramp payout method (`lib/payoutMethods.ts`). |
+| `NEXT_PUBLIC_STELLAR_NETWORK` | No | `testnet` | Stellar network (`testnet` or `mainnet`). |
+| `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE` | No | Network-specific | Overrides the wallet guard's network passphrase. |
+| `NEXT_PUBLIC_STELLAR_NETWORK_LABEL` | No | Network-specific | Display label for the configured Stellar network. |
+| `NEXT_PUBLIC_STELLAR_RPC_URL` | No | Network-specific Stellar RPC | Soroban RPC endpoint used by the savings-circle contract client. |
+| `NEXT_PUBLIC_STARKNET_RPC_URL` | No | _unset_ | Starknet RPC endpoint used to estimate on-chain gas fees. |
+| `NEXT_PUBLIC_CIRCLE_CONTRACT_ID` | No | Mock contract ID | Deployed Stellar savings-circle contract ID. |
+| `NEXT_PUBLIC_API_ADAPTER` | No | `mock` | Selects `mock` or `http` for the typed API client. |
+| `NEXT_PUBLIC_API_URL` | When adapter is `http` | _unset_ | Base URL of the backend API; required when `NEXT_PUBLIC_API_ADAPTER=http`. |
+| `NEXT_PUBLIC_HEARTBEAT_URL` | No | `/` | Endpoint periodically pinged to detect connectivity loss and recovery. |
+| `NEXT_PUBLIC_OFFRAMP_ENABLED` | No | `true` | Set to `false` to hide the bank-transfer off-ramp payout method. |
 | `NEXT_PUBLIC_OFFRAMP_PARTNER` | No | `Bank transfer partner` | Display name for the off-ramp partner shown in payout method UI. |
 
-> Note: a dedicated env validation layer (schema-checked env vars at startup) is tracked separately and is out of scope here — this table only documents what the app currently reads from `process.env`.
+`NODE_ENV` is set by Next.js and should not be configured manually. There are currently no server-only environment variables; add future private values only to the server schema in `lib/env.ts`, without a `NEXT_PUBLIC_` prefix.
 
 ---
 

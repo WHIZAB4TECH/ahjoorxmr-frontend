@@ -1,3 +1,5 @@
+import { publicEnv } from "@/lib/env";
+
 export type FeeOperation = "contribute" | "claim" | "create-circle";
 
 export interface GasFeeEstimate {
@@ -37,7 +39,7 @@ function normalizeProviderEstimate(value: unknown): GasFeeEstimate | null {
 }
 
 async function estimateFromRpc(request: GasFeeRequest): Promise<GasFeeEstimate | null> {
-    const rpcUrl = process.env.NEXT_PUBLIC_STARKNET_RPC_URL;
+    const rpcUrl = publicEnv.starknetRpcUrl;
     if (!rpcUrl || !request.transaction) return null;
 
     const response = await fetch(rpcUrl, {

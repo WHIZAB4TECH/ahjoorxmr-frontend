@@ -6,10 +6,11 @@
 // "detected" network lives on the mock `LinkedWallet` record instead of
 // coming from a real extension call; the comparison and guard logic below
 // are written the same way they would be against a real one.
+import { publicEnv } from "@/lib/env";
+
 export type StellarNetwork = "testnet" | "mainnet";
 
-export const APP_NETWORK: StellarNetwork =
-  (process.env.NEXT_PUBLIC_STELLAR_NETWORK as StellarNetwork | undefined) ?? "testnet";
+export const APP_NETWORK: StellarNetwork = publicEnv.stellarNetwork;
 
 export const NETWORK_LABELS: Record<StellarNetwork, string> = {
   testnet: "Testnet",

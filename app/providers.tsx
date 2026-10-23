@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { isDevelopment } from "@/lib/env";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -285,7 +286,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           </WalletProvider>
         </DensityProvider>
       </ThemeProvider>
-      {process.env.NODE_ENV === "development" && (
+      {isDevelopment && (
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
       )}
     </QueryClientProvider>
